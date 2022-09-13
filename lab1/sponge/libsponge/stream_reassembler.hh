@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-09-09 10:10:24
- * @LastEditTime: 2022-09-12 10:03:20
+ * @LastEditTime: 2022-09-13 11:17:43
  * @FilePath: \lab1\sponge\libsponge\stream_reassembler.hh
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -13,17 +13,25 @@
 
 #include <cstdint>
 #include <string>
-#include <vector>
+#include <set>
 
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
     // Your code here -- add private members as necessary.
+    struct Fragment{
+      size_t index = 0;
+      std :: string data = "";
+      Fragment(size_t nindex, std :: string ndata){
+        index = nindex; data = ndata;
+      }
+    };
+    friend bool operator < (const Fragment &A, const Fragment &B) {
+      return A.index < B.index;
+    }
     size_t startAt = 0;
-    size_t st = 0;
-    std :: vector<char> storage = std :: vector<char> ();
-    std :: vector<bool> assembled = std :: vector<bool>();
+    std :: multiset<Fragment> _storage = std :: multiset<Fragment> ();
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
     size_t _eofIndex = 0;

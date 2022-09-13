@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-09-09 10:10:24
- * @LastEditTime: 2022-09-12 11:08:47
+ * @LastEditTime: 2022-09-13 11:37:04
  * @FilePath: \lab1\sponge\libsponge\stream_reassembler.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -21,51 +21,55 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 using namespace std;
 
 StreamReassembler::StreamReassembler(const size_t capacity) : _output(capacity), _capacity(capacity) {
+    _eofIndex = capacity + 1;
+    _storage.clear();
     startAt = 0;
-    st = 0;
-    storage = vector<char>();
-    assembled = vector<bool>();
-    for (size_t i = 0;i < capacity;i++) storage.push_back('\0');
-    for (size_t i = 0;i < capacity;i++) assembled.push_back(false);
-    _eofIndex = _capacity + 1;
 }
 
 //! \details This function accepts a substring (aka a segment) of bytes,
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
-    string data1 = data;
     size_t index1 = index;
-    if (index < startAt) {
+    string data1 = data;
+    if (index < startAt){
         if (startAt - index >= data.length()) return;
         index1 = startAt;
         data1 = data.substr(startAt - index);
-    } 
-
-    size_t lft = _capacity - _output.buffer_size();
-    while (storage.size() - st < lft) {
-        storage.push_back('\0');
-        assembled.push_back(false);
     }
 
-    size_t l = min(data1.length(), lft - (index1 - startAt));
-
-    for (size_t i = 0;i < l;i++)    {
-        storage[i + index1 - startAt + st] = data1[i];
-        assembled[i + index1 - startAt + st] = true;
-    }
-    size_t maxpre = st;
-    for (;maxpre < assembled.size() && assembled[maxpre] == true;maxpre++);
+    size_t l = min(_capacity - _output.buffer_size() - (index1 - startAt), data1.length());
+    _storage.insert(Fragment(index1, data1.substr(0, l)));
     string putin = "";
-    for (size_t i = st;i < maxpre;i++)   putin = putin + storage[i];
-    startAt = startAt + maxpre - st;
-    st = maxpre;
-    _output.write(putin);   
-    
+    size_t lst = startAt;
+    multiset<Fragment> :: iterator it = _storage.begin();
+    for(;it != _storage.end();it++){
+        size_t st = it -> index;
+        string s = it -> data;
+        if (st > lst) break;
+        if (st + s.length() <= lst) continue;
+        putin = putin + s.substr(lst - st);
+        lst = lst + s.length() - (lst - st);
+    }
+    startAt = startAt + putin.length();
+    while (!_storage.empty() && _storage.begin() -> index + _storage.begin() -> data.length() <= startAt) _storage.erase(_storage.begin());
+    _output.write(putin);
     if (eof) _eofIndex = data.size() + index;
     if (startAt == _eofIndex) _output.end_input();
 }
 
-size_t StreamReassembler::unassembled_bytes() const { return {}; }
+size_t StreamReassembler::unassembled_bytes() const { 
+    size_t res = 0;
+    size_t lst = startAt;
+    for (multiset<Fragment> :: iterator it = _storage.begin();it != _storage.end();it++){
+        size_t st = it -> index;
+        string s = it -> data;
+        if (st + s.length() <= lst) continue;
+        if (lst < st) res = res + s.length();
+        else res = res + s.length() - (lst - st);
+        lst = st + s.length();
+    }
+    return res;
+}
 
 bool StreamReassembler::empty() const { return {}; }
