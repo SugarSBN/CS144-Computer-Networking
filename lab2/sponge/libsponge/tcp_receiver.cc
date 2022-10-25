@@ -1,5 +1,13 @@
+/*
+ * @Author: SuBonan
+ * @Date: 2022-10-14 09:55:25
+ * @LastEditTime: 2022-10-25 11:12:02
+ * @FilePath: \sponge\libsponge\tcp_receiver.cc
+ * @Github: https://github.com/SugarSBN
+ * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
+ */
 #include "tcp_receiver.hh"
-
+#include <iostream>
 // Dummy implementation of a TCP receiver
 
 // For Lab 2, please replace with a real implementation that passes the
@@ -10,10 +18,36 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 
 using namespace std;
 
-void TCPReceiver::segment_received(const TCPSegment &seg) {
-    DUMMY_CODE(seg);
+void print_header(const TCPHeader &header){
+    cout << "===================================================" << endl;
+    cout << "ACK: " << header.ack << endl;
+    cout << "seqno: " << header.seqno << endl;
+    cout << "SYN: " << header.syn << endl;
+    cout << "FIN: " << header.fin << endl;
+    cout << "===================================================" << endl;
 }
 
-optional<WrappingInt32> TCPReceiver::ackno() const { return {}; }
+void TCPReceiver::segment_received(const TCPSegment &seg) {
+    TCPHeader header = seg.header();
+    // print_header(header);
 
-size_t TCPReceiver::window_size() const { return {}; }
+    if (!syn && header.syn) {
+        syn = true;
+        isn = header.seqno;
+    }
+    if (!syn)   return;
+    // cout << "payload: " << seg.payload().copy() << endl;
+    uint64_t absolute_seqno = unwrap(header.seqno + header.syn, isn, stream_out().bytes_written());
+    // cout << "absolute seqno: " << absolute_seqno << endl;
+    _reassembler.push_substring(seg.payload().copy(), absolute_seqno - 1, header.fin);
+    if (header.fin) fin = true;
+}
+
+optional<WrappingInt32> TCPReceiver::ackno() const {
+    if (!syn)   return {};
+    // cout << "rua: " << stream_out().buffer_empty() << " " << fin << " " << stream_out().bytes_written() << " " << isn << endl;
+    if (_reassembler.unassembled_bytes() == 0 && fin) return wrap(stream_out().bytes_written() + 2, isn);
+    return wrap(stream_out().bytes_written() + 1, isn);
+}
+
+size_t TCPReceiver::window_size() const { return stream_out().remaining_capacity(); }

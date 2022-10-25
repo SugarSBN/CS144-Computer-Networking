@@ -1,3 +1,11 @@
+/*
+ * @Author: SuBonan
+ * @Date: 2022-10-14 09:55:25
+ * @LastEditTime: 2022-10-14 11:20:12
+ * @FilePath: \sponge\libsponge\tcp_receiver.hh
+ * @Github: https://github.com/SugarSBN
+ * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
+ */
 #ifndef SPONGE_LIBSPONGE_TCP_RECEIVER_HH
 #define SPONGE_LIBSPONGE_TCP_RECEIVER_HH
 
@@ -7,7 +15,7 @@
 #include "wrapping_integers.hh"
 
 #include <optional>
-
+#include <iostream>
 //! \brief The "receiver" part of a TCP implementation.
 
 //! Receives and reassembles segments into a ByteStream, and computes
@@ -16,7 +24,8 @@
 class TCPReceiver {
     //! Our data structure for re-assembling bytes.
     StreamReassembler _reassembler;
-
+    bool syn = false, fin = false;
+    WrappingInt32 isn = WrappingInt32(0);
     //! The maximum number of bytes we'll store.
     size_t _capacity;
 
@@ -25,7 +34,7 @@ class TCPReceiver {
     //!
     //! \param capacity the maximum number of bytes that the receiver will
     //!                 store in its buffers at any give time.
-    TCPReceiver(const size_t capacity) : _reassembler(capacity), _capacity(capacity) {}
+    TCPReceiver(const size_t capacity) : _reassembler(capacity), _capacity(capacity) {std :: cout << "new test" << std :: endl;}
 
     //! \name Accessors to provide feedback to the remote TCPSender
     //!@{
