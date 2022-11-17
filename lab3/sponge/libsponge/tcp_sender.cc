@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-17 21:31:48
+ * @LastEditTime: 2022-11-17 21:41:23
  * @FilePath: \CS144-Computer-Networking\lab3\sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -39,6 +39,11 @@ void TCPSender::fill_window() {
     cout << "to fill window!" << endl;
     cout << "window size: " << _window_size << endl;
 
+    if (_send_base + _window_size <= _next_seqno) {
+        cout << "window is full!" << endl;
+        return;
+    }
+
     Buffer payload = Buffer(_stream.read(_window_size + _send_base - _next_seqno));
     cout << "Buffer:" << payload.copy() << endl;
     TCPHeader header = TCPHeader();
@@ -49,8 +54,6 @@ void TCPSender::fill_window() {
         _syn = true;
     }
     if (_stream.eof()) header.fin = true;
-    
-    if (!header.syn && !header.fin && payload.size() == 0) return;
 
     header.seqno = wrap(_next_seqno, _isn);
     
@@ -60,6 +63,8 @@ void TCPSender::fill_window() {
     TCPSegment tcp_segment;
     tcp_segment.header() = header;
     tcp_segment.payload() = payload;
+    if (tcp_segment.length_in_sequence_space() == 0)    return;
+    cout << "tcp segment length: " << tcp_segment.length_in_sequence_space() << endl;
     _next_seqno += tcp_segment.length_in_sequence_space();
     _bytes_in_flight += tcp_segment.length_in_sequence_space();
     _segments_out.push(tcp_segment);
@@ -71,7 +76,6 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     cout << "ack received!" << endl;    
     uint64_t _rcv_base = unwrap(ackno, _isn, _send_base);
     cout << "rcv base: " << _rcv_base << endl;
-    cout << "ack absolute: " << _rcv_base << endl;
     _bytes_in_flight -= _rcv_base - _send_base;
     _window_size = window_size;
     _send_base = _rcv_base;
