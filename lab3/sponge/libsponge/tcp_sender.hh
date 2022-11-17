@@ -1,3 +1,11 @@
+/*
+ * @Author: SuBonan
+ * @Date: 2022-11-16 20:22:46
+ * @LastEditTime: 2022-11-17 21:21:57
+ * @FilePath: \CS144-Computer-Networking\lab3\sponge\libsponge\tcp_sender.hh
+ * @Github: https://github.com/SugarSBN
+ * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
+ */
 #ifndef SPONGE_LIBSPONGE_TCP_SENDER_HH
 #define SPONGE_LIBSPONGE_TCP_SENDER_HH
 
@@ -31,6 +39,10 @@ class TCPSender {
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
+    uint64_t _send_base{0};
+    uint64_t _window_size{0};
+    uint64_t _bytes_in_flight{0};
+    bool _syn = false;
 
   public:
     //! Initialize a TCPSender
