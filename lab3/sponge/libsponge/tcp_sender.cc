@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-17 21:41:23
+ * @LastEditTime: 2022-11-17 21:52:21
  * @FilePath: \CS144-Computer-Networking\lab3\sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -76,6 +76,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     cout << "ack received!" << endl;    
     uint64_t _rcv_base = unwrap(ackno, _isn, _send_base);
     cout << "rcv base: " << _rcv_base << endl;
+    if (_rcv_base > _next_seqno)   return;
     _bytes_in_flight -= _rcv_base - _send_base;
     _window_size = window_size;
     _send_base = _rcv_base;
