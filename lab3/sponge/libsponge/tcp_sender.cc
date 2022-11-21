@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-21 17:31:15
+ * @LastEditTime: 2022-11-21 17:52:05
  * @FilePath: \sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -80,13 +80,14 @@ void TCPSender::fill_window() {
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) { 
     cout << "ack received!" << endl;    
     uint64_t _rcv_base = unwrap(ackno, _isn, _send_base);
-    cout << "rcv base: " << _rcv_base << " " << " send base: " << _send_base << " bytes_in_flight: " << _bytes_in_flight << endl;
+    cout << "rcv base: " << _rcv_base << " " << " send base: " << _send_base << " next seqno: " << _next_seqno << " bytes_in_flight: " << _bytes_in_flight << endl;
     if (_rcv_base > _next_seqno)   return;
     if (_rcv_base > _send_base) {  // test send_extra: "Timer doesn't restart without ACK of new data"
         _rto = _initial_retransmission_timeout;
         _timer = 0;
         _consecutive_retx = 0;
     }
+    if (_rcv_base < _send_base)    return;
     _bytes_in_flight -= _rcv_base - _send_base;
     _window_size = window_size;
     _send_base = _rcv_base;
@@ -103,7 +104,7 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
             _segments_in_flight.pop_front();
             uint64_t seqno = unwrap(tcp_segment.header().seqno, _isn, _send_base);
             cout << "seqno: " << seqno << " send base: " << _send_base << endl;
-            if (seqno < _send_base) continue;
+            if (seqno + tcp_segment.length_in_sequence_space() <= _send_base) continue;
             _segments_in_flight.push_front(tcp_segment);
             _segments_out.push(tcp_segment);
             if (_window_size > 0)   {
