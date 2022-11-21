@@ -1,8 +1,8 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-17 21:52:21
- * @FilePath: \CS144-Computer-Networking\lab3\sponge\libsponge\tcp_sender.cc
+ * @LastEditTime: 2022-11-21 11:43:50
+ * @FilePath: \sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
  */
@@ -28,7 +28,8 @@ using namespace std;
 TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const std::optional<WrappingInt32> fixed_isn)
     : _isn(fixed_isn.value_or(WrappingInt32{random_device()()}))
     , _initial_retransmission_timeout{retx_timeout}
-    , _stream(capacity) {cout << "============NEW TEST==================" << endl;}
+    , _stream(capacity)
+    , _rto(retx_timeout) {cout << "============NEW TEST==================" << endl;}
 
 uint64_t TCPSender::bytes_in_flight() const { 
     cout << "bytes in flight: " << _bytes_in_flight << endl; 
@@ -68,6 +69,7 @@ void TCPSender::fill_window() {
     _next_seqno += tcp_segment.length_in_sequence_space();
     _bytes_in_flight += tcp_segment.length_in_sequence_space();
     _segments_out.push(tcp_segment);
+    _segments_in_flight.push(tcp_segment);
 }
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
@@ -80,15 +82,33 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     _bytes_in_flight -= _rcv_base - _send_base;
     _window_size = window_size;
     _send_base = _rcv_base;
+    _rto = _initial_retransmission_timeout;
+    _timer = 0;
+    _consecutive_retx = 0;
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) { 
     cout << "tick time: " << ms_since_last_tick << endl;
-    if (ms_since_last_tick > _initial_retransmission_timeout) fill_window();
+    _timer += ms_since_last_tick;
+    if (_timer >= _rto) {
+        while (!_segments_in_flight.empty()) {
+            TCPSegment tcp_segment = _segments_in_flight.front();
+            _segments_in_flight.pop();
+            uint64_t seqno = unwrap(tcp_segment.header().seqno, _isn, _send_base);
+            cout << "seqno: " << seqno << " send base: " << _send_base << endl;
+            if (seqno < _send_base) continue;
+            _segments_in_flight.push(tcp_segment);
+            _segments_out.push(tcp_segment);
+            _consecutive_retx++;
+            _rto *= 2;
+            break;
+        }
+        _timer = 0;
+    }
     DUMMY_CODE(ms_since_last_tick); 
 }
 
-unsigned int TCPSender::consecutive_retransmissions() const { return {}; }
+unsigned int TCPSender::consecutive_retransmissions() const { return _consecutive_retx; }
 
 void TCPSender::send_empty_segment() {}
