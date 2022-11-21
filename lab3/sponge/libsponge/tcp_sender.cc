@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-21 17:14:15
+ * @LastEditTime: 2022-11-21 17:17:56
  * @FilePath: \sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -52,7 +52,7 @@ void TCPSender::fill_window() {
             header.syn = true;
             _syn = true;
         }
-        if (_stream.eof()) {
+        if (_stream.eof() && _next_seqno + payload.size() + header.fin < _send_base + _window_size) {
             header.fin = true;
             _fin = true;
         }
