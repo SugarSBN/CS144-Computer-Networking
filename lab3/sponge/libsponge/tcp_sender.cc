@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-21 17:52:05
+ * @LastEditTime: 2022-11-21 17:53:37
  * @FilePath: \sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -29,23 +29,24 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
     : _isn(fixed_isn.value_or(WrappingInt32{random_device()()}))
     , _initial_retransmission_timeout{retx_timeout}
     , _stream(capacity)
-    , _rto(retx_timeout) {cout << "============NEW TEST==================" << endl;}
+    , _rto(retx_timeout) {//cout << "============NEW TEST==================" << endl;
+    }
 
 uint64_t TCPSender::bytes_in_flight() const { 
-    cout << "bytes in flight: " << _bytes_in_flight << endl; 
+    // cout << "bytes in flight: " << _bytes_in_flight << endl; 
     return _bytes_in_flight; 
 }
 
 void TCPSender::fill_window() {
-    cout << "to fill window!" << endl;
-    cout << "window size: " << _window_size << endl;
+    // cout << "to fill window!" << endl;
+    // cout << "window size: " << _window_size << endl;
 
     uint64_t window_size = _window_size == 0 ? 1 : _window_size;
     while (_send_base + window_size > _next_seqno) { // if window size is big, then several segments can be sent, each is MAX_PAYLOAD_SIZE
         if (_fin)   return;
 
         Buffer payload = Buffer(_stream.read(min(window_size + _send_base - _next_seqno, TCPConfig :: MAX_PAYLOAD_SIZE)));
-        cout << "Buffer:" << payload.copy() << endl;
+        // cout << "Buffer:" << payload.copy() << endl;
         TCPHeader header = TCPHeader();
 
 
@@ -59,14 +60,14 @@ void TCPSender::fill_window() {
         }
         header.seqno = wrap(_next_seqno, _isn);
         
-        cout << "next seqno: " << _next_seqno << endl;
-        cout << "stream written: " << _stream.bytes_written() << endl;
+        // cout << "next seqno: " << _next_seqno << endl;
+        // cout << "stream written: " << _stream.bytes_written() << endl;
 
         TCPSegment tcp_segment;
         tcp_segment.header() = header;
         tcp_segment.payload() = payload;
         if (tcp_segment.length_in_sequence_space() == 0)    return;
-        cout << "tcp segment length: " << tcp_segment.length_in_sequence_space() << endl;
+        // cout << "tcp segment length: " << tcp_segment.length_in_sequence_space() << endl;
         
         _next_seqno += tcp_segment.length_in_sequence_space();
         _bytes_in_flight += tcp_segment.length_in_sequence_space();
@@ -78,16 +79,15 @@ void TCPSender::fill_window() {
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) { 
-    cout << "ack received!" << endl;    
+    // cout << "ack received!" << endl;    
     uint64_t _rcv_base = unwrap(ackno, _isn, _send_base);
-    cout << "rcv base: " << _rcv_base << " " << " send base: " << _send_base << " next seqno: " << _next_seqno << " bytes_in_flight: " << _bytes_in_flight << endl;
-    if (_rcv_base > _next_seqno)   return;
+    // cout << "rcv base: " << _rcv_base << " " << " send base: " << _send_base << " next seqno: " << _next_seqno << " bytes_in_flight: " << _bytes_in_flight << endl;
+    if (_rcv_base > _next_seqno || _rcv_base < _send_base)   return;
     if (_rcv_base > _send_base) {  // test send_extra: "Timer doesn't restart without ACK of new data"
         _rto = _initial_retransmission_timeout;
         _timer = 0;
         _consecutive_retx = 0;
     }
-    if (_rcv_base < _send_base)    return;
     _bytes_in_flight -= _rcv_base - _send_base;
     _window_size = window_size;
     _send_base = _rcv_base;
@@ -103,7 +103,7 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
             TCPSegment tcp_segment = _segments_in_flight.front();
             _segments_in_flight.pop_front();
             uint64_t seqno = unwrap(tcp_segment.header().seqno, _isn, _send_base);
-            cout << "seqno: " << seqno << " send base: " << _send_base << endl;
+            // cout << "seqno: " << seqno << " send base: " << _send_base << endl;
             if (seqno + tcp_segment.length_in_sequence_space() <= _send_base) continue;
             _segments_in_flight.push_front(tcp_segment);
             _segments_out.push(tcp_segment);
@@ -115,7 +115,6 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
         }
         _timer = 0;
     }
-    DUMMY_CODE(ms_since_last_tick); 
 }
 
 unsigned int TCPSender::consecutive_retransmissions() const { return _consecutive_retx; }
