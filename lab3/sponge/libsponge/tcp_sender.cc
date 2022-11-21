@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-21 17:17:56
+ * @LastEditTime: 2022-11-21 17:31:15
  * @FilePath: \sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -40,10 +40,11 @@ void TCPSender::fill_window() {
     cout << "to fill window!" << endl;
     cout << "window size: " << _window_size << endl;
 
-    while (_send_base + _window_size > _next_seqno) { // if window size is big, then several segments can be sent, each is MAX_PAYLOAD_SIZE
+    uint64_t window_size = _window_size == 0 ? 1 : _window_size;
+    while (_send_base + window_size > _next_seqno) { // if window size is big, then several segments can be sent, each is MAX_PAYLOAD_SIZE
         if (_fin)   return;
 
-        Buffer payload = Buffer(_stream.read(min(_window_size + _send_base - _next_seqno, TCPConfig :: MAX_PAYLOAD_SIZE)));
+        Buffer payload = Buffer(_stream.read(min(window_size + _send_base - _next_seqno, TCPConfig :: MAX_PAYLOAD_SIZE)));
         cout << "Buffer:" << payload.copy() << endl;
         TCPHeader header = TCPHeader();
 
@@ -52,7 +53,7 @@ void TCPSender::fill_window() {
             header.syn = true;
             _syn = true;
         }
-        if (_stream.eof() && _next_seqno + payload.size() + header.fin < _send_base + _window_size) {
+        if (_stream.eof() && _next_seqno + payload.size() + header.fin < _send_base + window_size) { // Don't send FIN by itself if the window is full
             header.fin = true;
             _fin = true;
         }
@@ -105,8 +106,10 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
             if (seqno < _send_base) continue;
             _segments_in_flight.push_front(tcp_segment);
             _segments_out.push(tcp_segment);
-            _consecutive_retx++;
-            _rto *= 2;
+            if (_window_size > 0)   {
+                _rto *= 2;
+                _consecutive_retx++;
+            }
             break;
         }
         _timer = 0;
