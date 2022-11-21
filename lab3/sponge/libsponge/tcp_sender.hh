@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-21 11:33:22
+ * @LastEditTime: 2022-11-21 16:44:22
  * @FilePath: \sponge\libsponge\tcp_sender.hh
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -45,7 +45,7 @@ class TCPSender {
     uint64_t _timer{0};
     uint64_t _rto{0};
     uint64_t _consecutive_retx{0};
-    bool _syn = false;
+    bool _syn = false, _fin = false;
 
   public:
     //! Initialize a TCPSender

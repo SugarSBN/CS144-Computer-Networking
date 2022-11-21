@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-21 11:43:50
+ * @LastEditTime: 2022-11-21 16:44:01
  * @FilePath: \sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -44,6 +44,7 @@ void TCPSender::fill_window() {
         cout << "window is full!" << endl;
         return;
     }
+    if (_fin)   return;
 
     Buffer payload = Buffer(_stream.read(_window_size + _send_base - _next_seqno));
     cout << "Buffer:" << payload.copy() << endl;
@@ -54,8 +55,10 @@ void TCPSender::fill_window() {
         header.syn = true;
         _syn = true;
     }
-    if (_stream.eof()) header.fin = true;
-
+    if (_stream.eof()) {
+        header.fin = true;
+        _fin = true;
+    }
     header.seqno = wrap(_next_seqno, _isn);
     
     cout << "next seqno: " << _next_seqno << endl;
@@ -66,6 +69,7 @@ void TCPSender::fill_window() {
     tcp_segment.payload() = payload;
     if (tcp_segment.length_in_sequence_space() == 0)    return;
     cout << "tcp segment length: " << tcp_segment.length_in_sequence_space() << endl;
+    
     _next_seqno += tcp_segment.length_in_sequence_space();
     _bytes_in_flight += tcp_segment.length_in_sequence_space();
     _segments_out.push(tcp_segment);
@@ -77,7 +81,7 @@ void TCPSender::fill_window() {
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) { 
     cout << "ack received!" << endl;    
     uint64_t _rcv_base = unwrap(ackno, _isn, _send_base);
-    cout << "rcv base: " << _rcv_base << endl;
+    cout << "rcv base: " << _rcv_base << " " << " send base: " << _send_base << " bytes_in_flight: " << _bytes_in_flight << endl;
     if (_rcv_base > _next_seqno)   return;
     _bytes_in_flight -= _rcv_base - _send_base;
     _window_size = window_size;
