@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-21 16:53:36
+ * @LastEditTime: 2022-11-21 17:14:15
  * @FilePath: \sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -40,40 +40,38 @@ void TCPSender::fill_window() {
     cout << "to fill window!" << endl;
     cout << "window size: " << _window_size << endl;
 
-    if (_send_base + _window_size <= _next_seqno) {
-        cout << "window is full!" << endl;
-        return;
+    while (_send_base + _window_size > _next_seqno) { // if window size is big, then several segments can be sent, each is MAX_PAYLOAD_SIZE
+        if (_fin)   return;
+
+        Buffer payload = Buffer(_stream.read(min(_window_size + _send_base - _next_seqno, TCPConfig :: MAX_PAYLOAD_SIZE)));
+        cout << "Buffer:" << payload.copy() << endl;
+        TCPHeader header = TCPHeader();
+
+
+        if (!_syn) {
+            header.syn = true;
+            _syn = true;
+        }
+        if (_stream.eof()) {
+            header.fin = true;
+            _fin = true;
+        }
+        header.seqno = wrap(_next_seqno, _isn);
+        
+        cout << "next seqno: " << _next_seqno << endl;
+        cout << "stream written: " << _stream.bytes_written() << endl;
+
+        TCPSegment tcp_segment;
+        tcp_segment.header() = header;
+        tcp_segment.payload() = payload;
+        if (tcp_segment.length_in_sequence_space() == 0)    return;
+        cout << "tcp segment length: " << tcp_segment.length_in_sequence_space() << endl;
+        
+        _next_seqno += tcp_segment.length_in_sequence_space();
+        _bytes_in_flight += tcp_segment.length_in_sequence_space();
+        _segments_out.push(tcp_segment);
+        _segments_in_flight.push_back(tcp_segment);
     }
-    if (_fin)   return;
-
-    Buffer payload = Buffer(_stream.read(_window_size + _send_base - _next_seqno));
-    cout << "Buffer:" << payload.copy() << endl;
-    TCPHeader header = TCPHeader();
-
-
-    if (!_syn) {
-        header.syn = true;
-        _syn = true;
-    }
-    if (_stream.eof()) {
-        header.fin = true;
-        _fin = true;
-    }
-    header.seqno = wrap(_next_seqno, _isn);
-    
-    cout << "next seqno: " << _next_seqno << endl;
-    cout << "stream written: " << _stream.bytes_written() << endl;
-
-    TCPSegment tcp_segment;
-    tcp_segment.header() = header;
-    tcp_segment.payload() = payload;
-    if (tcp_segment.length_in_sequence_space() == 0)    return;
-    cout << "tcp segment length: " << tcp_segment.length_in_sequence_space() << endl;
-    
-    _next_seqno += tcp_segment.length_in_sequence_space();
-    _bytes_in_flight += tcp_segment.length_in_sequence_space();
-    _segments_out.push(tcp_segment);
-    _segments_in_flight.push_back(tcp_segment);
 }
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
