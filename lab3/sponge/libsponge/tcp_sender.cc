@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-21 16:44:01
+ * @LastEditTime: 2022-11-21 16:53:36
  * @FilePath: \sponge\libsponge\tcp_sender.cc
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -73,7 +73,7 @@ void TCPSender::fill_window() {
     _next_seqno += tcp_segment.length_in_sequence_space();
     _bytes_in_flight += tcp_segment.length_in_sequence_space();
     _segments_out.push(tcp_segment);
-    _segments_in_flight.push(tcp_segment);
+    _segments_in_flight.push_back(tcp_segment);
 }
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
@@ -83,12 +83,15 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     uint64_t _rcv_base = unwrap(ackno, _isn, _send_base);
     cout << "rcv base: " << _rcv_base << " " << " send base: " << _send_base << " bytes_in_flight: " << _bytes_in_flight << endl;
     if (_rcv_base > _next_seqno)   return;
+    if (_rcv_base > _send_base) {  // test send_extra: "Timer doesn't restart without ACK of new data"
+        _rto = _initial_retransmission_timeout;
+        _timer = 0;
+        _consecutive_retx = 0;
+    }
     _bytes_in_flight -= _rcv_base - _send_base;
     _window_size = window_size;
     _send_base = _rcv_base;
-    _rto = _initial_retransmission_timeout;
-    _timer = 0;
-    _consecutive_retx = 0;
+    
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
@@ -98,11 +101,11 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
     if (_timer >= _rto) {
         while (!_segments_in_flight.empty()) {
             TCPSegment tcp_segment = _segments_in_flight.front();
-            _segments_in_flight.pop();
+            _segments_in_flight.pop_front();
             uint64_t seqno = unwrap(tcp_segment.header().seqno, _isn, _send_base);
             cout << "seqno: " << seqno << " send base: " << _send_base << endl;
             if (seqno < _send_base) continue;
-            _segments_in_flight.push(tcp_segment);
+            _segments_in_flight.push_front(tcp_segment);
             _segments_out.push(tcp_segment);
             _consecutive_retx++;
             _rto *= 2;

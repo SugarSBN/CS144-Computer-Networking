@@ -1,7 +1,7 @@
 /*
  * @Author: SuBonan
  * @Date: 2022-11-16 20:22:46
- * @LastEditTime: 2022-11-21 16:44:22
+ * @LastEditTime: 2022-11-21 16:53:26
  * @FilePath: \sponge\libsponge\tcp_sender.hh
  * @Github: https://github.com/SugarSBN
  * これなに、これなに、これない、これなに、これなに、これなに、ねこ！ヾ(*´∀｀*)ﾉ
@@ -30,7 +30,7 @@ class TCPSender {
 
     //! outbound queue of segments that the TCPSender wants sent
     std::queue<TCPSegment> _segments_out{};
-    std::queue<TCPSegment> _segments_in_flight{};
+    std::deque<TCPSegment> _segments_in_flight{};
     //! retransmission timer for the connection
     unsigned int _initial_retransmission_timeout;
 
